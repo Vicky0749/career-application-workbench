@@ -8,7 +8,7 @@ const TODAY = '2026-08-11'
 const labels: Record<'all' | CareerTrack, string> = { all: '全部', primary: '主目标', challenge: '挑战', base: '兜底' }
 
 export function JobPool() {
-  const { jobs, profile, trackFilter, setTrackFilter, selectedJobId, selectJob } = useWorkbenchStore()
+  const { jobs, profile, trackFilter, setTrackFilter, selectedJobId, selectJob, selectedJobIds } = useWorkbenchStore()
   const visibleJobs = jobs
     .filter((job) => trackFilter === 'all' || job.track === trackFilter)
     .map((job) => ({ job, match: rankJob(profile, job, TODAY) }))
@@ -42,15 +42,16 @@ export function JobPool() {
             </button>
           ))}
         </div>
-        {selected && selectedMatch && <JobDetail job={selected} score={selectedMatch.score} reasons={selectedMatch.reasons} missing={selectedMatch.missingRequirements} stale={selectedMatch.isStale} />}
+        {selected && selectedMatch && <JobDetail isSelected={selectedJobIds.includes(selected.id)} job={selected} score={selectedMatch.score} reasons={selectedMatch.reasons} missing={selectedMatch.missingRequirements} stale={selectedMatch.isStale} />}
       </section>
     </>
   )
 }
 
-function JobDetail({ job, score, reasons, missing, stale }: { job: ReturnType<typeof useWorkbenchStore.getState>['jobs'][number]; score: number; reasons: string[]; missing: string[]; stale: boolean }) {
+function JobDetail({ job, score, reasons, missing, stale, isSelected }: { job: ReturnType<typeof useWorkbenchStore.getState>['jobs'][number]; score: number; reasons: string[]; missing: string[]; stale: boolean; isSelected: boolean }) {
   const setActiveView = useWorkbenchStore((state) => state.setActiveView)
   const selectJob = useWorkbenchStore((state) => state.selectJob)
+  const toggleJobSelection = useWorkbenchStore((state) => state.toggleJobSelection)
 
   return (
     <aside className="job-detail panel">
@@ -59,7 +60,7 @@ function JobDetail({ job, score, reasons, missing, stale }: { job: ReturnType<ty
       <dl className="detail-facts"><div><dt><MapPin size={15} />工作地点</dt><dd>{job.city}</dd></div><div><dt>适用届别</dt><dd>{job.graduationYears.join('、')} 届</dd></div><div><dt>最近核验</dt><dd>{job.capturedAt}{stale ? ' · 超过 5 天' : ''}</dd></div><div><dt>转正信息</dt><dd>{job.returnOffer === 'confirmed' ? '已明确' : '待职位页确认'}</dd></div></dl>
       <div className="fit-list"><h3>匹配依据</h3>{reasons.map((reason) => <span key={reason}>{reason}</span>)}</div>
       <div className="gap-list"><h3>需补强或核验</h3>{missing.length ? missing.map((item) => <span key={item}>{item}</span>) : <span>暂无能力缺口</span>}</div>
-      <div className="detail-actions"><a className="button secondary" href={job.sourceUrl} rel="noreferrer" target="_blank"><ExternalLink size={16} />打开官网</a><button className="button primary" onClick={() => { selectJob(job.id); setActiveView('review') }} type="button">进入审核</button></div>
+      <div className="detail-actions"><a className="button secondary" href={job.sourceUrl} rel="noreferrer" target="_blank"><ExternalLink size={16} />打开官网</a><button className="button primary" onClick={() => toggleJobSelection(job.id)} type="button">{isSelected ? '移出本轮' : '加入本轮'}</button></div><button className="link-button review-link" onClick={() => { selectJob(job.id); setActiveView('review') }} type="button">进入审核与投递编排</button>
     </aside>
   )
 }

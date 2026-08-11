@@ -19,7 +19,7 @@ describe('official site adapters', () => {
     expect(collectJobPage(missingTitle, 'https://join.qq.com/apply', adapter)).toEqual({ ok: false, error: '未识别岗位标题' })
   })
 
-  it('does not ship a submit selector in any official adapter', () => {
+  it('keeps capture adapters independent from final submission controls', () => {
     expect(JSON.stringify(ADAPTERS).toLowerCase()).not.toContain('submit')
   })
 })

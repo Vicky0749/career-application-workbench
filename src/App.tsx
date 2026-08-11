@@ -1,5 +1,6 @@
 import { AppShell } from './components/AppShell'
 import { Dashboard } from './components/Dashboard'
+import { Discover } from './components/Discover'
 import { JobPool } from './components/JobPool'
 import { Profile } from './components/Profile'
 import { ProviderSettings } from './components/ProviderSettings'
@@ -12,6 +13,7 @@ export default function App() {
   return (
     <AppShell>
       {activeView === 'dashboard' && <Dashboard />}
+      {activeView === 'discover' && <Discover />}
       {activeView === 'jobs' && <JobPool />}
       {activeView === 'review' && <ReviewQueue />}
       {activeView === 'profile' && <Profile />}

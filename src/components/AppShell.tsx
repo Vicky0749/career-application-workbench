@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
-import { BriefcaseBusiness, ClipboardCheck, FileText, LayoutDashboard, Settings2 } from 'lucide-react'
+import { BriefcaseBusiness, ClipboardCheck, FileSearch, FileText, LayoutDashboard, Settings2 } from 'lucide-react'
 
 import { useWorkbenchStore, type WorkbenchView } from '../store/workbench-store'
 
 const navigation: Array<{ id: WorkbenchView; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'dashboard', label: '总览', icon: LayoutDashboard },
+  { id: 'discover', label: '导入与发现', icon: FileSearch },
   { id: 'jobs', label: '岗位池', icon: BriefcaseBusiness },
   { id: 'review', label: '审核队列', icon: ClipboardCheck },
   { id: 'profile', label: '档案与证据', icon: FileText },

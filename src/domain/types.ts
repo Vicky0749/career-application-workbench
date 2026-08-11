@@ -28,6 +28,17 @@ export interface CandidateProfile {
   evidence: Evidence[]
 }
 
+export interface ResumeDraft {
+  rawText: string
+  name?: string
+  email?: string
+  phone?: string
+  graduationYear?: number
+  education?: string
+  locationPreference?: string[]
+  evidence: Evidence[]
+}
+
 export interface Job {
   id: string
   employer: EmployerId
@@ -67,6 +78,25 @@ export interface ProviderConfig {
   model: string
   apiKey: string
   status: 'not_configured' | 'ready'
+  searchUrl: string
+  searchApiKey: string
+  searchResultPath: string
 }
 
 export type ApplicationStatus = 'saved' | 'applied' | 'interviewing' | 'offer' | 'closed' | 'rejected'
+
+export type DispatchStage = 'not_selected' | 'queued' | 'prefilled' | 'needs_manual' | 'sending' | 'sent' | 'failed'
+
+export interface DispatchRecord {
+  stage: DispatchStage
+  detail: string
+  updatedAt: string
+  tabId?: number
+}
+
+export interface SearchHit {
+  title: string
+  url: string
+  summary: string
+  publishedAt?: string
+}

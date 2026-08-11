@@ -31,6 +31,8 @@ describe('App', () => {
     await user.type(app.getByLabelText('是否具备在中国大陆工作的合法资格？'), '是')
 
     expect(app.getAllByText('预填就绪').length).toBeGreaterThan(0)
-    expect(app.getAllByText('仍需在官网完成最终提交').length).toBeGreaterThan(0)
+    await user.click(app.getAllByLabelText('纳入本轮投递')[0])
+    expect(app.getByText('本轮已选 1 个')).toBeInTheDocument()
+    expect(app.getByText('一键发送 0 个')).toBeDisabled()
   })
 })

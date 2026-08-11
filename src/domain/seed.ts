@@ -146,4 +146,7 @@ export const seedProvider: ProviderConfig = {
   model: '',
   apiKey: '',
   status: 'not_configured',
+  searchUrl: '',
+  searchApiKey: '',
+  searchResultPath: 'results',
 }

@@ -135,6 +135,19 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         applications: state.applications,
         provider: { ...state.provider, apiKey: '', searchApiKey: '' },
       }),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<WorkbenchState>
+        return {
+          ...currentState,
+          ...persisted,
+          provider: {
+            ...currentState.provider,
+            ...persisted.provider,
+            apiKey: '',
+            searchApiKey: '',
+          },
+        }
+      },
     },
   ),
 )

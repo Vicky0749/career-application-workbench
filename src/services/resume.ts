@@ -1,4 +1,5 @@
 import type { Evidence, ProviderConfig, ResumeDraft } from '../domain/types'
+import { parseHeaders, readJsonPath, renderJsonTemplate } from './json-api'
 
 type Fetcher = typeof fetch
 
@@ -73,24 +74,29 @@ export async function readResumeFile(file: File): Promise<string> {
 }
 
 export async function parseResumeWithProvider(rawText: string, provider: ProviderConfig, fetcher: Fetcher = fetch): Promise<ResumeDraft> {
-  if (!provider.baseUrl.trim() || !provider.model.trim() || !provider.apiKey.trim()) throw new Error('请先在 AI 配置中填写 Base URL、模型名称和 API Key')
+  if (!provider.baseUrl.trim()) throw new Error('请先在 AI 配置中填写模型 API URL')
+  if (provider.modelProtocol === 'openai-compatible' && (!provider.model.trim() || !provider.apiKey.trim())) throw new Error('OpenAI 兼容接口需要模型名称和 API Key')
   const prompt = `请把以下中文/英文简历解析成严格 JSON。只提取简历中明确出现的事实，不要补写。返回对象字段：name, email, phone, graduationYear, education, locationPreference(string[]), evidence(array，每项含 title, organization, period, summary, skills(string[]))。\n\n简历：\n${rawText}`
-  const response = await fetcher(completionPath(provider.baseUrl), {
+  const customHeaders = parseHeaders(provider.modelHeadersJson)
+  const headers: Record<string, string> = { 'content-type': 'application/json', ...customHeaders }
+  if (provider.apiKey.trim() && !Object.keys(headers).some((key) => key.toLocaleLowerCase() === 'authorization')) headers.authorization = `Bearer ${provider.apiKey.trim()}`
+  const standardProtocol = provider.modelProtocol === 'openai-compatible'
+  const response = await fetcher(standardProtocol ? completionPath(provider.baseUrl) : provider.baseUrl.trim(), {
     method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${provider.apiKey.trim()}` },
-    body: JSON.stringify({
+    headers,
+    body: JSON.stringify(standardProtocol ? {
       model: provider.model.trim(),
       temperature: 0,
       messages: [
         { role: 'system', content: '你是严谨的求职信息提取器。只返回 JSON，不要 Markdown。' },
         { role: 'user', content: prompt },
       ],
-    }),
+    } : renderJsonTemplate(provider.modelRequestTemplate, { modelJson: provider.model.trim(), promptJson: prompt })),
   })
   if (!response.ok) throw new Error(`模型请求失败：${response.status}`)
   const body = await response.json() as { choices?: Array<{ message?: { content?: string } }> }
-  const content = body.choices?.[0]?.message?.content
-  if (!content) throw new Error('模型未返回可解析内容')
+  const content = standardProtocol ? body.choices?.[0]?.message?.content : readJsonPath(body, provider.modelResponsePath)
+  if (typeof content !== 'string' || !content.trim()) throw new Error('模型未返回可解析内容，请检查响应路径')
   try {
     return resumeDraftFromJson(rawText, JSON.parse(stripJsonFence(content)))
   } catch {

@@ -27,4 +27,15 @@ describe('official job discovery', () => {
     expect(jobs).toHaveLength(1)
     expect(jobs[0]).toMatchObject({ employer: 'tencent', role: '商业分析实习生' })
   })
+
+  it('renders a custom search JSON body before it calls the search gateway', async () => {
+    const requestBodies: string[] = []
+    const fetcher = (async (_input, init) => {
+      requestBodies.push(String(init?.body))
+      return new Response(JSON.stringify({ results: [] }), { status: 200 })
+    }) as typeof fetch
+
+    await expect(discoverOfficialJobs(seedProfile, { ...seedProvider, searchUrl: 'https://search.example/api', searchRequestTemplate: '{"phrase":{{queryJson}},"count":{{maxResults}}}' }, fetcher)).rejects.toThrow('搜索接口未返回可验证的官网职位链接')
+    expect(JSON.parse(requestBodies[0])).toMatchObject({ count: 12 })
+  })
 })

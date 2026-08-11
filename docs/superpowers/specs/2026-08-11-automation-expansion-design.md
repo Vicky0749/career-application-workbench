@@ -14,7 +14,7 @@
 
 ## API 适配
 
-模型调用支持 OpenAI 兼容的 `chat/completions` 协议。搜索调用接受可配置 URL、Bearer Key 和常见 JSON 结果形态（`results`、`items`、`data.results`）；无法直接适配的厂商可由本地代理转换为该约定。
+模型调用支持 OpenAI 兼容的 `chat/completions` 协议，也支持自定义 JSON POST 模板、响应文本路径与附加请求头。搜索调用同样支持可配置 JSON 请求模板、结果路径和常见结果形态（`results`、`items`、`data.results`、`organic`），因此可直接接入厂商网关或本地代理。
 
 ## 数据流
 

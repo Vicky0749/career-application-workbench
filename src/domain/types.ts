@@ -78,9 +78,15 @@ export interface ProviderConfig {
   model: string
   apiKey: string
   status: 'not_configured' | 'ready'
+  modelProtocol: 'openai-compatible' | 'custom-json'
+  modelRequestTemplate: string
+  modelResponsePath: string
+  modelHeadersJson: string
   searchUrl: string
   searchApiKey: string
   searchResultPath: string
+  searchRequestTemplate: string
+  searchHeadersJson: string
 }
 
 export type ApplicationStatus = 'saved' | 'applied' | 'interviewing' | 'offer' | 'closed' | 'rejected'

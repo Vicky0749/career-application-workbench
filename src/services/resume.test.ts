@@ -29,4 +29,19 @@ describe('resume draft parsing', () => {
 
     expect(draft).toMatchObject({ name: '王温翔', rawText: '简历正文', evidence: [] })
   })
+
+  it('adapts a custom JSON model response through its configured response path', async () => {
+    const fetcher = (async () => new Response(JSON.stringify({ data: { output: JSON.stringify({ name: '王温翔', evidence: [] }) } }), { status: 200 })) as typeof fetch
+    const draft = await parseResumeWithProvider('简历正文', {
+      ...seedProvider,
+      modelProtocol: 'custom-json',
+      baseUrl: 'https://model.example/parse',
+      model: '',
+      apiKey: '',
+      modelRequestTemplate: '{"input":{{promptJson}}}',
+      modelResponsePath: 'data.output',
+    }, fetcher)
+
+    expect(draft).toMatchObject({ name: '王温翔', evidence: [] })
+  })
 })

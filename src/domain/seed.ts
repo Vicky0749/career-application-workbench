@@ -146,7 +146,13 @@ export const seedProvider: ProviderConfig = {
   model: '',
   apiKey: '',
   status: 'not_configured',
+  modelProtocol: 'openai-compatible',
+  modelRequestTemplate: '{"model":{{modelJson}},"prompt":{{promptJson}}}',
+  modelResponsePath: 'result',
+  modelHeadersJson: '',
   searchUrl: '',
   searchApiKey: '',
   searchResultPath: 'results',
+  searchRequestTemplate: '{"query":{{queryJson}},"max_results":{{maxResults}}}',
+  searchHeadersJson: '',
 }

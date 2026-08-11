@@ -1,4 +1,5 @@
 import type { CandidateProfile, CareerTrack, EmployerId, Job, ProviderConfig, SearchHit } from '../domain/types'
+import { parseHeaders, readJsonPath, renderJsonTemplate } from './json-api'
 
 type Fetcher = typeof fetch
 
@@ -10,21 +11,15 @@ const employerSources: Record<EmployerId, { label: string; domain: string; caree
 
 const baseKeywords = ['商业分析', '经营分析', '战略运营', '行业研究', '咨询', '财务分析']
 
-export function readPath(value: unknown, path: string): unknown {
-  if (!path.trim()) return value
-  return path.split('.').filter(Boolean).reduce<unknown>((current, key) => {
-    if (Array.isArray(current) && /^\d+$/.test(key)) return current[Number(key)]
-    return current && typeof current === 'object' ? (current as Record<string, unknown>)[key] : undefined
-  }, value)
-}
+export const readPath = readJsonPath
 
 export function normalizeSearchPayload(payload: unknown, resultPath = ''): SearchHit[] {
-  const root = readPath(payload, resultPath)
+  const root = readJsonPath(payload, resultPath)
   const candidates = Array.isArray(root) ? root : [
-    readPath(payload, 'results'),
-    readPath(payload, 'items'),
-    readPath(payload, 'data.results'),
-    readPath(payload, 'organic'),
+    readJsonPath(payload, 'results'),
+    readJsonPath(payload, 'items'),
+    readJsonPath(payload, 'data.results'),
+    readJsonPath(payload, 'organic'),
   ].find(Array.isArray)
   if (!Array.isArray(candidates)) return []
   return candidates.flatMap((value) => {
@@ -108,13 +103,13 @@ export function jobFromHit(hit: SearchHit, employer: EmployerId, profile: Candid
 export async function discoverOfficialJobs(profile: CandidateProfile, provider: ProviderConfig, fetcher: Fetcher = fetch): Promise<Job[]> {
   if (!provider.searchUrl.trim()) throw new Error('请先填写搜索 API URL')
   const calls = officialSearchQueries(profile).map(async ({ employer, query }) => {
+    const customHeaders = parseHeaders(provider.searchHeadersJson)
+    const headers: Record<string, string> = { 'content-type': 'application/json', ...customHeaders }
+    if (provider.searchApiKey.trim() && !Object.keys(headers).some((key) => key.toLocaleLowerCase() === 'authorization')) headers.authorization = `Bearer ${provider.searchApiKey.trim()}`
     const response = await fetcher(provider.searchUrl.trim(), {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        ...(provider.searchApiKey.trim() ? { authorization: `Bearer ${provider.searchApiKey.trim()}` } : {}),
-      },
-      body: JSON.stringify({ query, max_results: 12 }),
+      headers,
+      body: JSON.stringify(renderJsonTemplate(provider.searchRequestTemplate, { queryJson: query, maxResults: 12 })),
     })
     if (!response.ok) throw new Error(`${employerSources[employer].label} 搜索失败：${response.status}`)
     const hits = normalizeSearchPayload(await response.json(), provider.searchResultPath)

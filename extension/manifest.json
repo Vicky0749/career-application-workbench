@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "求职工作台预填助手",
+  "version": "0.1.0",
+  "description": "在华为、腾讯和 PwC 中国官网页面采集岗位并预填已审核事实。",
+  "permissions": ["storage", "sidePanel", "activeTab"],
+  "host_permissions": [
+    "https://career.huawei.com/*",
+    "https://join.qq.com/*",
+    "https://www.pwccn.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "求职工作台预填助手"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://career.huawei.com/*",
+        "https://join.qq.com/*",
+        "https://www.pwccn.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

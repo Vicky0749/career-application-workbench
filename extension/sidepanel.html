@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <link href="sidepanel.css" rel="stylesheet" />
+    <title>求职工作台预填助手</title>
+  </head>
+  <body>
+    <main>
+      <header><span>本地预填助手</span><h1>官网申请审核</h1><p>仅支持华为、腾讯和 PwC 中国。页面提交始终由本人完成。</p></header>
+      <section class="section"><div class="section-heading"><h2>已审核档案</h2><button id="save-profile" type="button">保存</button></div><label>姓名<input id="name" /></label><label>邮箱<input id="email" type="email" /></label><label>联系电话<input id="phone" type="tel" /></label><label>教育经历<textarea id="education"></textarea></label><label>简历文件名<input id="resumeFileName" /></label></section>
+      <section class="section"><div class="section-heading"><h2>当前页面</h2><button id="capture" type="button">读取岗位</button></div><div id="capture-result" class="result muted">尚未读取</div></section>
+      <section class="section"><div class="section-heading"><h2>预填审计</h2><button id="prefill" type="button">开始预填</button></div><p class="hint">空字段和文件上传会保留为人工操作。</p><ul id="audit" class="audit"></ul></section>
+    </main>
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

@@ -12,7 +12,7 @@ export function evaluateReview(profile: CandidateProfile, job: Job, answers: Rec
   const blockers: string[] = []
 
   if (!job.sourceUrl.startsWith('https://')) blockers.push('缺少官方职位链接')
-  if (job.sourceConfidence !== 'official-live') blockers.push('需复核官方职位页面')
+  if (job.sourceConfidence !== 'official-live' && job.sourceConfidence !== 'candidate-reviewed') blockers.push('需复核官方职位页面')
   if (job.graduationYears.length === 0) blockers.push('未确认适用毕业届别')
   if (!job.graduationYears.includes(profile.graduationYear)) blockers.push('职位届别与候选人不匹配')
   if (!job.city.trim()) blockers.push('未确认工作地点')

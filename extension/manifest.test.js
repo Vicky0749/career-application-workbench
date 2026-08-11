@@ -16,5 +16,7 @@ describe('extension manifest', () => {
   it('uses local-only workbench bridge permissions', () => {
     expect(manifest.host_permissions.filter((host) => host.startsWith('http://'))).toEqual(['http://127.0.0.1/*', 'http://localhost/*'])
     expect(manifest.permissions).toContain('tabs')
+    expect(manifest.permissions).toContain('scripting')
+    expect(manifest.optional_host_permissions).toEqual(['https://*/*', 'http://*/*'])
   })
 })

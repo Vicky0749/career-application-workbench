@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
 import { seedJobs, seedProfile, seedProvider } from '../domain/seed'
-import type { ApplicationStatus, CandidateProfile, CareerTrack, DispatchRecord, Evidence, Job, ProviderConfig, ResumeDraft } from '../domain/types'
+import type { ApplicationEntryAnalysis, ApplicationStatus, ApplicationTarget, CandidateProfile, CareerTrack, DispatchRecord, Evidence, Job, PageInspection, ProviderConfig, ResumeDraft } from '../domain/types'
 
 export type WorkbenchView = 'dashboard' | 'discover' | 'jobs' | 'review' | 'profile' | 'settings'
 export type TrackFilter = 'all' | CareerTrack
@@ -20,6 +20,7 @@ interface WorkbenchState {
   dispatches: Record<string, DispatchRecord>
   resumeText: string
   resumeDraft?: ResumeDraft
+  applicationTargets: ApplicationTarget[]
   provider: ProviderConfig
   setActiveView: (view: WorkbenchView) => void
   setTrackFilter: (filter: TrackFilter) => void
@@ -31,6 +32,13 @@ interface WorkbenchState {
   addEvidence: (evidence: Evidence) => void
   updateEvidence: (id: string, changes: Partial<Evidence>) => void
   removeEvidence: (id: string) => void
+  addApplicationTargets: (targets: ApplicationTarget[]) => void
+  setTargetInspection: (targetId: string, inspection: PageInspection) => void
+  setTargetAnalyses: (analyses: Record<string, ApplicationEntryAnalysis>) => void
+  updateTargetAnalysis: (targetId: string, changes: Partial<ApplicationEntryAnalysis>) => void
+  setTargetError: (targetId: string, error: string) => void
+  confirmApplicationTarget: (targetId: string, jobId: string) => void
+  removeApplicationTarget: (targetId: string) => void
   addJobs: (jobs: Job[]) => void
   toggleJobSelection: (jobId: string) => void
   setFinalReview: (jobId: string, confirmed: boolean) => void
@@ -69,6 +77,7 @@ const initialState = () => ({
   dispatches: {},
   resumeText: '',
   resumeDraft: undefined,
+  applicationTargets: [],
   provider: clone(seedProvider),
 })
 
@@ -98,6 +107,27 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       addEvidence: (evidence) => set((state) => ({ profile: { ...state.profile, evidence: [...state.profile.evidence, evidence] } })),
       updateEvidence: (id, changes) => set((state) => ({ profile: { ...state.profile, evidence: state.profile.evidence.map((evidence) => evidence.id === id ? { ...evidence, ...changes } : evidence) } })),
       removeEvidence: (id) => set((state) => ({ profile: { ...state.profile, evidence: state.profile.evidence.filter((evidence) => evidence.id !== id) } })),
+      addApplicationTargets: (targets) => set((state) => {
+        const targetsById = new Map(state.applicationTargets.map((target) => [target.id, target]))
+        targets.forEach((target) => targetsById.set(target.id, target))
+        return { applicationTargets: [...targetsById.values()] }
+      }),
+      setTargetInspection: (targetId, inspection) => set((state) => ({
+        applicationTargets: state.applicationTargets.map((target) => target.id === targetId ? { ...target, inspection, status: 'inspected', error: undefined } : target),
+      })),
+      setTargetAnalyses: (analyses) => set((state) => ({
+        applicationTargets: state.applicationTargets.map((target) => analyses[target.id] ? { ...target, analysis: analyses[target.id], status: 'analyzed', error: undefined } : target),
+      })),
+      updateTargetAnalysis: (targetId, changes) => set((state) => ({
+        applicationTargets: state.applicationTargets.map((target) => target.id === targetId && target.analysis ? { ...target, analysis: { ...target.analysis, ...changes } } : target),
+      })),
+      setTargetError: (targetId, error) => set((state) => ({
+        applicationTargets: state.applicationTargets.map((target) => target.id === targetId ? { ...target, status: 'failed', error } : target),
+      })),
+      confirmApplicationTarget: (targetId, confirmedJobId) => set((state) => ({
+        applicationTargets: state.applicationTargets.map((target) => target.id === targetId ? { ...target, status: 'confirmed', confirmedJobId } : target),
+      })),
+      removeApplicationTarget: (targetId) => set((state) => ({ applicationTargets: state.applicationTargets.filter((target) => target.id !== targetId) })),
       addJobs: (newJobs) => set((state) => {
         const jobsById = new Map(state.jobs.map((job) => [job.id, job]))
         newJobs.forEach((job) => jobsById.set(job.id, job))
@@ -133,6 +163,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
         selectedJobId: state.selectedJobId,
         answers: state.answers,
         applications: state.applications,
+        applicationTargets: state.applicationTargets,
         provider: { ...state.provider, apiKey: '', searchApiKey: '' },
       }),
       merge: (persistedState, currentState) => {

@@ -2,14 +2,18 @@
   "manifest_version": 3,
   "name": "求职工作台预填助手",
   "version": "0.1.0",
-  "description": "在华为、腾讯和 PwC 中国官网页面采集岗位、预填已审核事实并执行候选人确认后的批量投递。",
-  "permissions": ["storage", "sidePanel", "activeTab", "tabs"],
+  "description": "在已授权招聘官网页面采集岗位、预填已审核事实并执行候选人确认后的批量投递。",
+  "permissions": ["storage", "sidePanel", "activeTab", "tabs", "scripting"],
   "host_permissions": [
     "https://career.huawei.com/*",
     "https://join.qq.com/*",
     "https://www.pwccn.com/*",
     "http://127.0.0.1/*",
     "http://localhost/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
   ],
   "background": {
     "service_worker": "background.js",

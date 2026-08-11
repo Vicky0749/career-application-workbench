@@ -19,6 +19,21 @@ npm install
 npm run dev
 ```
 
+## 自定义招聘官网
+
+1. 在“导入与发现”的“任意招聘官网”中，一次粘贴多个目标；每行格式为 `招聘官网 URL, 职位目标`，也支持用竖线或制表符分隔。例如：
+
+   ```text
+   https://careers.example.com, 商业分析实习生
+   https://jobs.example.org | 财务分析实习生
+   ```
+
+2. 导入后点击“检测申请入口”。首次检测某个新域名时，Chrome 会显示本轮访问授权提示；授权仅用于用户导入的网址，不会写入固定网站权限。
+3. 功能会读取该招聘页的可见文字和链接，并调用已在“AI 与搜索 API”配置的模型，给出申请入口、置信度、依据、ATS 和登录风险提示。
+4. 核对或修订推荐链接后点击“确认加入岗位池”。只有经确认的自定义入口才可进入后续预填、逐岗复核和最终发送流程。
+
+入口检测需要先配置可用的大模型 API。模型返回无效链接时，系统会保留原始官网 URL 作为回退，不会自动提交申请。
+
 ## Chrome 扩展
 
 1. 在 Chrome 打开 `chrome://extensions`，开启开发者模式。
@@ -41,3 +56,5 @@ npm test
 npm run build
 npm run lint
 ```
+
+设计说明：[自定义官网与申请入口识别](docs/superpowers/specs/2026-08-11-custom-site-entry-discovery-design.md)。

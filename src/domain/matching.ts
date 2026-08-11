@@ -41,6 +41,9 @@ export function rankJob(profile: CandidateProfile, job: Job, today: string): Mat
   if (job.sourceConfidence === 'official-live') {
     score += 15
     reasons.push('已核验官方实时职位页')
+  } else if (job.sourceConfidence === 'candidate-reviewed') {
+    score += 8
+    reasons.push('已由本人确认申请入口')
   } else if (job.sourceConfidence === 'official-entry') {
     score += 5
     reasons.push('官方招聘入口待复核具体 JD')

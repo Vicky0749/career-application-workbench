@@ -38,7 +38,7 @@ export function JobPool() {
               <span className="job-title"><strong>{job.role}</strong><small>{job.employerLabel} · {job.city}</small></span>
               <span className={`track-tag ${job.track}`}>{labels[job.track]}</span>
               <span className="score"><b>{match.score}</b><small>{match.isStale ? '待复核' : '已匹配'}</small></span>
-              <span className="source-cell"><small>{job.sourceConfidence === 'official-live' ? '官网职位页' : '官方入口'}</small><small>{job.capturedAt}</small></span>
+              <span className="source-cell"><small>{job.sourceConfidence === 'official-live' ? '官网职位页' : job.sourceConfidence === 'candidate-reviewed' ? '用户确认入口' : job.sourceConfidence === 'official-entry' ? '官方入口' : '待复核线索'}</small><small>{job.capturedAt}</small></span>
             </button>
           ))}
         </div>

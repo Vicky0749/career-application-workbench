@@ -49,4 +49,11 @@ describe('evaluateReview', () => {
 
     expect(result).toEqual({ status: 'ready_to_prefill', blockers: [] })
   })
+
+  it('allows a user-reviewed custom application entry into the prefill queue', () => {
+    const readyProfile = { ...profile, phone: '13800000000' }
+    const customJob = { ...job, sourceConfidence: 'candidate-reviewed' as const, sourceUrl: 'https://careers.example.com/apply', screeningQuestions: [] }
+
+    expect(evaluateReview(readyProfile, customJob, {})).toEqual({ status: 'ready_to_prefill', blockers: [] })
+  })
 })

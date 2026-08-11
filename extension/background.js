@@ -1,3 +1,5 @@
+import { inspectRecruitmentPage, prefillRecruitmentPage, submitReviewedRecruitmentPage } from './injected-actions.js'
+
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
 
 const activeBatchTabs = new Map()
@@ -41,7 +43,32 @@ async function waitForPage(tabId, timeoutMs = 30_000) {
 
 const stamp = () => new Date().toISOString()
 
+function originPattern(url) {
+  const parsed = new URL(url)
+  return `${parsed.origin}/*`
+}
+
+async function ensureSiteAccess(url) {
+  const origins = [originPattern(url)]
+  if (await chrome.permissions.contains({ origins })) return true
+  return chrome.permissions.request({ origins })
+}
+
+async function inspectOne(target) {
+  try {
+    if (!await ensureSiteAccess(target.sourceUrl)) return { targetId: target.id, status: 'failed', error: '未获得该招聘网站的访问授权' }
+    const tab = await chrome.tabs.create({ url: target.sourceUrl, active: false })
+    if (!tab.id) return { targetId: target.id, status: 'failed', error: '无法打开招聘官网页面' }
+    if (!await waitForPage(tab.id)) return { targetId: target.id, status: 'failed', error: '招聘官网页面加载超时' }
+    const [injected] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: inspectRecruitmentPage })
+    return injected?.result ? { targetId: target.id, status: 'inspected', inspection: injected.result } : { targetId: target.id, status: 'failed', error: '未读取到招聘页面内容' }
+  } catch (error) {
+    return { targetId: target.id, status: 'failed', error: `页面检查失败：${error.message}` }
+  }
+}
+
 async function prefillOne(item) {
+  if (!await ensureSiteAccess(item.job.sourceUrl)) return { jobId: item.job.id, record: { stage: 'needs_manual', detail: '未获得该招聘网站的访问授权', updatedAt: stamp() } }
   const tab = await chrome.tabs.create({ url: item.job.sourceUrl, active: false })
   if (!tab.id) return { jobId: item.job.id, record: { stage: 'failed', detail: '无法创建官网标签页', updatedAt: stamp() } }
   await rememberBatchTab(item.job.id, tab.id)
@@ -49,7 +76,8 @@ async function prefillOne(item) {
   if (!loaded) return { jobId: item.job.id, record: { stage: 'needs_manual', detail: '官网页面加载超时，请在该标签页手动继续', updatedAt: stamp(), tabId: tab.id } }
   await new Promise((resolve) => setTimeout(resolve, 600))
   try {
-    const result = await chrome.tabs.sendMessage(tab.id, { type: 'prefill-approved-facts', profile: item.profile })
+    const [injected] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: prefillRecruitmentPage, args: [item.profile] })
+    const result = injected?.result
     const filled = result?.audit?.some((entry) => entry.status === 'filled')
     return {
       jobId: item.job.id,
@@ -66,8 +94,8 @@ async function submitOne(item) {
   const tabId = await rememberedBatchTab(item.job.id)
   if (!tabId) return { jobId: item.job.id, record: { stage: 'needs_manual', detail: '未找到本轮官网标签页，请重新预填', updatedAt: stamp() } }
   try {
-    const result = await chrome.tabs.sendMessage(tabId, { type: 'submit-reviewed-application' })
-    return { jobId: item.job.id, record: { ...result.dispatch, updatedAt: stamp(), tabId } }
+    const [injected] = await chrome.scripting.executeScript({ target: { tabId }, func: submitReviewedRecruitmentPage })
+    return { jobId: item.job.id, record: { ...(injected?.result ?? { stage: 'needs_manual', detail: '未读取到页面提交结果' }), updatedAt: stamp(), tabId } }
   } catch (error) {
     return { jobId: item.job.id, record: { stage: 'needs_manual', detail: `无法发送：${error.message}`, updatedAt: stamp(), tabId } }
   }
@@ -76,6 +104,10 @@ async function submitOne(item) {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type !== 'workbench-batch') return undefined
   const items = Array.isArray(message.items) ? message.items : []
+  if (message.action === 'inspect-targets') {
+    Promise.all(items.map(inspectOne)).then((targets) => sendResponse({ targets })).catch((error) => sendResponse({ error: error.message }))
+    return true
+  }
   const worker = message.action === 'submit-batch' ? submitOne : prefillOne
   Promise.all(items.map(worker)).then((jobs) => sendResponse({ jobs })).catch((error) => sendResponse({ error: error.message }))
   return true

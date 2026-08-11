@@ -1,8 +1,8 @@
 export type CareerTrack = 'primary' | 'challenge' | 'base'
 
-export type EmployerId = 'huawei' | 'tencent' | 'pwc-china'
+export type EmployerId = string
 
-export type SourceConfidence = 'official-live' | 'official-entry' | 'lead'
+export type SourceConfidence = 'official-live' | 'official-entry' | 'candidate-reviewed' | 'lead'
 
 export type ReviewStatus = 'discovered' | 'qualified' | 'review_required' | 'ready_to_prefill'
 
@@ -105,4 +105,41 @@ export interface SearchHit {
   url: string
   summary: string
   publishedAt?: string
+}
+
+export interface CandidateLink {
+  text: string
+  url: string
+}
+
+export interface PageInspection {
+  pageUrl: string
+  pageTitle: string
+  excerpt: string
+  links: CandidateLink[]
+  capturedAt: string
+}
+
+export interface ApplicationEntryAnalysis {
+  companyName: string
+  applicationUrl: string
+  confidence: number
+  reason: string
+  warnings: string[]
+  detectedAts?: string
+  requiresLogin: boolean
+}
+
+export type ApplicationTargetStatus = 'imported' | 'inspected' | 'analyzed' | 'needs_review' | 'confirmed' | 'failed'
+
+export interface ApplicationTarget {
+  id: string
+  sourceUrl: string
+  targetRole: string
+  importedAt: string
+  status: ApplicationTargetStatus
+  inspection?: PageInspection
+  analysis?: ApplicationEntryAnalysis
+  error?: string
+  confirmedJobId?: string
 }

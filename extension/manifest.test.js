@@ -19,4 +19,11 @@ describe('extension manifest', () => {
     expect(manifest.permissions).toContain('scripting')
     expect(manifest.optional_host_permissions).toEqual(['https://*/*', 'http://*/*'])
   })
+
+  it('declares store-ready local autofill metadata without a fixed all-sites permission', () => {
+    expect(manifest.name).toContain('本地自动填写')
+    expect(manifest.version).toBe('0.2.0')
+    expect(manifest.icons).toEqual({ '16': 'icons/icon-16.png', '32': 'icons/icon-32.png', '48': 'icons/icon-48.png', '128': 'icons/icon-128.png' })
+    expect(manifest.host_permissions).not.toContain('https://*/*')
+  })
 })

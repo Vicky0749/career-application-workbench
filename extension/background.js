@@ -1,9 +1,48 @@
+import { requestAiMappings } from './api-client.js'
+import { applyReviewedFillPlan, inspectRecruitmentForm } from './form-analysis.js'
 import { inspectRecruitmentPage, prefillRecruitmentPage, submitReviewedRecruitmentPage } from './injected-actions.js'
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
 
 const activeBatchTabs = new Map()
 const batchTabsKey = 'careerBatchTabs'
+const stamp = () => new Date().toISOString()
+
+function originPattern(url) {
+  const parsed = new URL(url)
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw new Error('仅支持 HTTP(S) 网站')
+  return `${parsed.origin}/*`
+}
+
+async function hasSiteAccess(url) {
+  return chrome.permissions.contains({ origins: [originPattern(url)] })
+}
+
+async function ensureSiteAccess(url) {
+  const origins = [originPattern(url)]
+  if (await chrome.permissions.contains({ origins })) return true
+  return chrome.permissions.request({ origins })
+}
+
+async function currentRecruitmentTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+  if (!tab?.id || !tab.url) throw new Error('未找到当前招聘页面')
+  if (!await hasSiteAccess(tab.url)) throw new Error('请先在侧栏中授权当前招聘网站')
+  return tab
+}
+
+async function inspectCurrentTab() {
+  const tab = await currentRecruitmentTab()
+  const [result] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: inspectRecruitmentForm })
+  if (!result?.result) throw new Error('未读取到当前页面的可见表单')
+  return result.result
+}
+
+async function applyCurrentTabPlan(plan) {
+  const tab = await currentRecruitmentTab()
+  const [result] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: applyReviewedFillPlan, args: [plan] })
+  return result?.result ?? []
+}
 
 async function rememberBatchTab(jobId, tabId) {
   activeBatchTabs.set(jobId, tabId)
@@ -27,10 +66,7 @@ async function waitForPage(tabId, timeoutMs = 30_000) {
     return false
   }
   return new Promise((resolve) => {
-    const timer = setTimeout(() => {
-      chrome.tabs.onUpdated.removeListener(onUpdated)
-      resolve(false)
-    }, timeoutMs)
+    const timer = setTimeout(() => { chrome.tabs.onUpdated.removeListener(onUpdated); resolve(false) }, timeoutMs)
     const onUpdated = (updatedTabId, changeInfo) => {
       if (updatedTabId !== tabId || changeInfo.status !== 'complete') return
       clearTimeout(timer)
@@ -39,19 +75,6 @@ async function waitForPage(tabId, timeoutMs = 30_000) {
     }
     chrome.tabs.onUpdated.addListener(onUpdated)
   })
-}
-
-const stamp = () => new Date().toISOString()
-
-function originPattern(url) {
-  const parsed = new URL(url)
-  return `${parsed.origin}/*`
-}
-
-async function ensureSiteAccess(url) {
-  const origins = [originPattern(url)]
-  if (await chrome.permissions.contains({ origins })) return true
-  return chrome.permissions.request({ origins })
 }
 
 async function inspectOne(target) {
@@ -72,19 +95,12 @@ async function prefillOne(item) {
   const tab = await chrome.tabs.create({ url: item.job.sourceUrl, active: false })
   if (!tab.id) return { jobId: item.job.id, record: { stage: 'failed', detail: '无法创建官网标签页', updatedAt: stamp() } }
   await rememberBatchTab(item.job.id, tab.id)
-  const loaded = await waitForPage(tab.id)
-  if (!loaded) return { jobId: item.job.id, record: { stage: 'needs_manual', detail: '官网页面加载超时，请在该标签页手动继续', updatedAt: stamp(), tabId: tab.id } }
+  if (!await waitForPage(tab.id)) return { jobId: item.job.id, record: { stage: 'needs_manual', detail: '官网页面加载超时，请在该标签页手动继续', updatedAt: stamp(), tabId: tab.id } }
   await new Promise((resolve) => setTimeout(resolve, 600))
   try {
     const [injected] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: prefillRecruitmentPage, args: [item.profile] })
-    const result = injected?.result
-    const filled = result?.audit?.some((entry) => entry.status === 'filled')
-    return {
-      jobId: item.job.id,
-      record: filled
-        ? { stage: 'prefilled', detail: '已预填可识别字段；请在官网补传简历并完成最终审核', updatedAt: stamp(), tabId: tab.id }
-        : { stage: 'needs_manual', detail: '未识别可安全预填字段，请在官网手动处理', updatedAt: stamp(), tabId: tab.id },
-    }
+    const filled = injected?.result?.audit?.some((entry) => entry.status === 'filled')
+    return { jobId: item.job.id, record: filled ? { stage: 'prefilled', detail: '已预填可识别字段；请在官网补传简历并完成最终审核', updatedAt: stamp(), tabId: tab.id } : { stage: 'needs_manual', detail: '未识别可安全预填字段，请在官网手动处理', updatedAt: stamp(), tabId: tab.id } }
   } catch (error) {
     return { jobId: item.job.id, record: { stage: 'needs_manual', detail: `无法预填：${error.message}`, updatedAt: stamp(), tabId: tab.id } }
   }
@@ -102,6 +118,17 @@ async function submitOne(item) {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === 'autofill-extension') {
+    const handlers = {
+      'analyze-current-tab': async () => ({ inspection: await inspectCurrentTab() }),
+      'apply-reviewed-fill': async () => ({ audit: await applyCurrentTabPlan(message.plan) }),
+      'map-unknown-fields': async () => ({ mappings: await requestAiMappings(message.provider, message.fields, message.profile) }),
+    }
+    const handler = handlers[message.action]
+    if (!handler) return undefined
+    handler().then((payload) => sendResponse({ ok: true, ...payload })).catch((error) => sendResponse({ ok: false, error: error.message }))
+    return true
+  }
   if (message?.type !== 'workbench-batch') return undefined
   const items = Array.isArray(message.items) ? message.items : []
   if (message.action === 'inspect-targets') {

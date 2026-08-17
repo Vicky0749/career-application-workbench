@@ -1,8 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "求职工作台预填助手",
-  "version": "0.1.0",
-  "description": "在已授权招聘官网页面采集岗位、预填已审核事实并执行候选人确认后的批量投递。",
+  "name": "求职工作台 - 本地自动填写",
+  "version": "0.2.0",
+  "description": "本地保存多份求职资料，分析招聘表单并在复核后填写已审核字段。",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "permissions": ["storage", "sidePanel", "activeTab", "tabs", "scripting"],
   "host_permissions": [
     "https://career.huawei.com/*",
@@ -20,7 +26,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "求职工作台预填助手"
+    "default_title": "求职工作台 - 本地自动填写"
   },
   "side_panel": {
     "default_path": "sidepanel.html"

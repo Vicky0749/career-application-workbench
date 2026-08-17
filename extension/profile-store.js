@@ -29,8 +29,13 @@ function normalizeAnswers(value) {
   })
 }
 
+function normalizeRoleKeywords(value) {
+  const source = Array.isArray(value) ? value : typeof value === 'string' ? value.split(/[\n,，]/) : []
+  return [...new Set(source.map(stringValue).filter(Boolean))]
+}
+
 export function createProfile(label = '我的简历', id = idFor()) {
-  return { id, label: stringValue(label) || '我的简历', fields: defaultFields(), customAnswers: [] }
+  return { id, label: stringValue(label) || '我的简历', roleKeywords: [], fields: defaultFields(), customAnswers: [] }
 }
 
 export function normalizeProfile(value, index = 0) {
@@ -39,6 +44,7 @@ export function normalizeProfile(value, index = 0) {
   return {
     id: stringValue(candidate.id) || `profile-${index + 1}`,
     label: stringValue(candidate.label) || `我的简历 ${index + 1}`,
+    roleKeywords: normalizeRoleKeywords(candidate.roleKeywords),
     fields: { ...defaultFields(), ...(candidate.fields && typeof candidate.fields === 'object' ? Object.fromEntries(FIELD_KEYS.map((key) => [key, stringValue(candidate.fields[key])])) : {}) },
     customAnswers: normalizeAnswers(candidate.customAnswers),
   }

@@ -18,6 +18,8 @@
       <section class="panel profile-panel" aria-labelledby="profile-title">
         <div class="section-heading"><div><p class="eyebrow">01 · 我的资料</p><h2 id="profile-title">当前简历</h2></div><div class="mini-actions"><button id="new-profile" class="icon-button" title="新增简历" type="button">+</button><button id="duplicate-profile" class="icon-button" title="复制当前简历" type="button">+</button><button id="delete-profile" class="icon-button danger" title="删除当前简历" type="button">-</button></div></div>
         <label class="field">简历版本<select id="profile-select"></select></label>
+        <label class="field">版本名称<input id="profile-label" placeholder="例如：产品经理校招" /></label>
+        <label class="field full">适用岗位关键词<textarea id="profile-role-keywords" placeholder="例如：产品经理, 产品运营, Product Manager" rows="2"></textarea></label>
         <div class="field-grid">
           <label class="field">姓名<input id="field-name" autocomplete="name" /></label>
           <label class="field">邮箱<input id="field-email" autocomplete="email" type="email" /></label>
@@ -42,6 +44,7 @@
         <div class="section-heading"><div><p class="eyebrow">02 · 当前页面</p><h2 id="page-title">表单支持度</h2></div><button id="analyze-page" class="button secondary" type="button">分析页面</button></div>
         <div id="page-summary" class="page-summary"><strong>尚未分析</strong><span>打开任意招聘表单后点击分析页面。</span></div>
         <div id="support-summary" class="support-summary" hidden></div>
+        <div id="profile-recommendation" class="profile-recommendation" hidden></div>
       </section>
 
       <section class="panel audit-panel" aria-labelledby="audit-title">

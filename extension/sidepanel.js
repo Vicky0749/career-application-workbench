@@ -1,4 +1,5 @@
 import { applyAiMappings, buildFillPlan, normalizeAiMappings } from './field-mapping.js'
+import { calculateSupport, recommendProfile } from './profile-matching.js'
 import { createProfile, FIELD_KEYS, loadState, saveState } from './profile-store.js'
 
 const byId = (id) => document.querySelector(`#${id}`)
@@ -7,6 +8,7 @@ const auditList = byId('audit-list')
 const notice = byId('notice')
 const pageSummary = byId('page-summary')
 const supportSummary = byId('support-summary')
+const profileRecommendation = byId('profile-recommendation')
 const readyCount = byId('ready-count')
 const customAnswers = byId('custom-answers')
 const providerProtocol = byId('provider-protocol')
@@ -64,6 +66,8 @@ function readCustomAnswers() {
 
 function writeProfile(profile) {
   renderProfileOptions()
+  byId('profile-label').value = profile.label ?? ''
+  byId('profile-role-keywords').value = (profile.roleKeywords ?? []).join(', ')
   FIELD_KEYS.forEach((key) => { const element = byId(`field-${key}`); if (element) element.value = profile.fields[key] ?? '' })
   renderCustomAnswers(profile)
 }
@@ -72,7 +76,8 @@ function readProfile() {
   const current = activeProfile()
   return {
     ...current,
-    label: current.label,
+    label: byId('profile-label').value.trim() || current.label,
+    roleKeywords: byId('profile-role-keywords').value.split(/[\n,，]/).map((value) => value.trim()).filter(Boolean),
     fields: Object.fromEntries(FIELD_KEYS.map((key) => [key, byId(`field-${key}`)?.value.trim() ?? ''])),
     customAnswers: readCustomAnswers(),
   }
@@ -89,13 +94,14 @@ async function persistProfile(showNotice = true) {
 function renderAudit(items = fillPlan) {
   const summary = items.reduce((counts, item) => ({ ...counts, [item.status]: (counts[item.status] ?? 0) + 1 }), {})
   const ready = summary.ready ?? 0
+  const support = calculateSupport(items)
   readyCount.textContent = String(ready)
   byId('apply-fill').disabled = ready === 0
   byId('ai-map').disabled = !analysis || !extensionState.provider.baseUrl || !items.some((item) => item.status === 'manual')
   supportSummary.hidden = !analysis
   if (analysis) {
     supportSummary.replaceChildren(...[
-      ['ready', `可填写 ${ready}`],
+      ['ready', `${support.percentage}% 可自动填写 (${support.ready}/${support.total})`],
       ['manual', `待补充 ${(summary.manual ?? 0) + (summary.sensitive ?? 0)}`],
       ['unsupported', `人工处理 ${(summary.unsupported ?? 0) + (summary.skipped ?? 0)}`],
     ].map(([tone, label]) => { const chip = document.createElement('span'); chip.className = tone; chip.textContent = label; return chip }))
@@ -111,6 +117,36 @@ function renderAudit(items = fillPlan) {
     entry.append(label, detail)
     return entry
   }))
+}
+
+async function selectProfile(profileId, { preserveCurrent = true } = {}) {
+  if (preserveCurrent) await persistProfile(false)
+  if (!extensionState.profiles.some((profile) => profile.id === profileId)) return
+  extensionState = await saveState({ ...extensionState, activeProfileId: profileId })
+  writeProfile(activeProfile())
+  if (analysis) fillPlan = buildFillPlan(analysis.fields, activeProfile())
+  renderAudit()
+  renderProfileRecommendation()
+}
+
+function renderProfileRecommendation() {
+  const recommendation = recommendProfile(extensionState.profiles, {
+    pageTitle: analysis?.pageTitle,
+    contextText: analysis?.fields?.map((field) => [field.label, field.name, field.placeholder].filter(Boolean).join(' ')).join(' '),
+  })
+  profileRecommendation.hidden = !recommendation || recommendation.profileId === extensionState.activeProfileId
+  profileRecommendation.replaceChildren()
+  if (!recommendation || recommendation.profileId === extensionState.activeProfileId) return
+  const text = document.createElement('span')
+  const label = document.createElement('strong')
+  label.textContent = recommendation.label
+  text.append('推荐使用 ', label, `，匹配：${recommendation.matchedKeywords.join('、')}`)
+  const button = document.createElement('button')
+  button.type = 'button'
+  button.className = 'text-button'
+  button.textContent = '切换此版本'
+  button.addEventListener('click', () => void selectProfile(recommendation.profileId))
+  profileRecommendation.append(text, button)
 }
 
 function renderProvider() {
@@ -156,6 +192,7 @@ async function analyzePage() {
     fillPlan = buildFillPlan(analysis.fields, profile)
     pageSummary.replaceChildren(Object.assign(document.createElement('strong'), { textContent: analysis.pageTitle || new URL(tab.url).hostname }), Object.assign(document.createElement('span'), { textContent: `${analysis.fields.length} 个可见字段${analysis.hasLogin ? ' · 需要登录' : ''}${analysis.hasCaptcha ? ' · 存在验证码' : ''}` }))
     renderAudit()
+    renderProfileRecommendation()
     setNotice('页面已分析。请核对审计清单后再填写。', 'success')
   } catch (error) {
     setNotice(error instanceof Error ? error.message : '页面分析失败', 'error')
@@ -218,7 +255,7 @@ async function saveProvider() {
   }
 }
 
-profileSelect.addEventListener('change', async () => { await persistProfile(false); extensionState = { ...extensionState, activeProfileId: profileSelect.value }; extensionState = await saveState(extensionState); writeProfile(activeProfile()); renderAudit() })
+profileSelect.addEventListener('change', () => void selectProfile(profileSelect.value))
 byId('new-profile').addEventListener('click', async () => { await persistProfile(false); const profile = createProfile(`简历 ${extensionState.profiles.length + 1}`); extensionState = await saveState({ ...extensionState, profiles: [...extensionState.profiles, profile], activeProfileId: profile.id }); writeProfile(activeProfile()); renderAudit(); setNotice('已新增空白简历版本。', 'success') })
 byId('duplicate-profile').addEventListener('click', async () => { const source = await persistProfile(false); const profile = { ...createProfile(`${source.label} 副本`), fields: { ...source.fields }, customAnswers: source.customAnswers.map((answer) => ({ ...answer })) }; extensionState = await saveState({ ...extensionState, profiles: [...extensionState.profiles, profile], activeProfileId: profile.id }); writeProfile(activeProfile()); renderAudit(); setNotice('已复制当前简历版本。', 'success') })
 byId('delete-profile').addEventListener('click', async () => { if (extensionState.profiles.length === 1) return setNotice('至少保留一份本地简历。', 'error'); const retained = extensionState.profiles.filter((profile) => profile.id !== activeProfile().id); extensionState = await saveState({ ...extensionState, profiles: retained, activeProfileId: retained[0].id }); writeProfile(activeProfile()); fillPlan = []; renderAudit(); setNotice('已删除当前简历版本。', 'success') })

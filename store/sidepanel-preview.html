@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <link href="../extension/sidepanel.css" rel="stylesheet" />
+    <title>求职工作台侧栏预览</title>
+  </head>
+  <body>
+    <script>
+      const storageKey = 'job-workbench-autofill-v1'
+      let state = {
+        version: 1,
+        activeProfileId: 'preview-profile',
+        profiles: [{
+          id: 'preview-profile', label: '产品经理实习简历', roleKeywords: ['产品经理', 'Product Manager'],
+          fields: { name: '陈昱', email: 'candidate@example.com', phone: '13900000000', education: '示例大学管理学硕士', school: '示例大学', degree: '硕士', major: '管理学', graduationDate: '2028-06', city: '深圳', linkedIn: '', github: '', portfolio: 'https://portfolio.example.com', workAuthorization: '中国大陆工作授权' },
+          customAnswers: [{ id: 'availability', label: '最早入职时间', value: '2027-06-01' }],
+        }, {
+          id: 'preview-analysis', label: '商业分析实习简历', roleKeywords: ['商业分析', 'Business Analyst'],
+          fields: { name: '陈昕', email: 'candidate@example.com', phone: '13900000000', education: '示例大学管理学硕士', school: '示例大学', degree: '硕士', major: '管理学', graduationDate: '2028-06', city: '深圳', linkedIn: '', github: '', portfolio: 'https://portfolio.example.com', workAuthorization: '中国大陆工作授权' },
+          customAnswers: [{ id: 'availability', label: '最早入职时间', value: '2027-06-01' }],
+        }],
+        provider: { protocol: 'openai-compatible', baseUrl: 'https://api.example.com/v1', model: 'gpt-4o-mini', apiKey: '', headersJson: '{}', requestTemplate: '{"model":{{modelJson}},"prompt":{{promptJson}}}', responsePath: 'choices.0.message.content' },
+      }
+      window.chrome = {
+        storage: { local: { get: async () => ({ [storageKey]: state }), set: async (value) => { state = value[storageKey] || state } } },
+        permissions: { contains: async () => true, request: async () => true },
+        tabs: { query: async () => [{ id: 1, url: 'https://careers.example.com/apply' }] },
+        runtime: { sendMessage: async (message) => {
+          if (message.action === 'analyze-current-tab') return { ok: true, inspection: { pageTitle: '商业分析实习生 - 示例公司', hasLogin: false, hasCaptcha: false, fields: [
+            { fieldId: 'name', label: '姓名', kind: 'text', key: 'name', required: true, sensitive: false, options: [] },
+            { fieldId: 'email', label: 'Email address', kind: 'email', key: 'email', required: true, sensitive: false, options: [] },
+            { fieldId: 'start', label: '预计开始日期', kind: 'text', key: 'unknown', required: true, sensitive: false, options: [] },
+            { fieldId: 'resume', label: '简历 PDF', kind: 'file', key: 'resume', required: true, sensitive: false, options: [] },
+            { fieldId: 'consent', label: '我同意隐私声明', kind: 'checkbox', key: 'declaration', required: true, sensitive: true, options: [] },
+          ] } }
+          if (message.action === 'map-unknown-fields') return { ok: true, mappings: [{ fieldId: 'start', value: '2027-06-01' }] }
+          if (message.action === 'apply-reviewed-fill') return { ok: true, audit: message.plan.map((item) => ({ fieldId: item.fieldId, status: 'filled', detail: '已填写已审核值' })) }
+          return { ok: false, error: '预览环境未实现此操作' }
+        } },
+      }
+    </script>
+    <main>
+      <header class="app-header"><div class="brand-mark" aria-hidden="true">JW</div><div><p class="eyebrow">LOCAL AUTOFILL</p><h1>求职工作台</h1></div><span class="local-badge">本地优先</span></header>
+      <p id="notice" class="notice muted" role="status">资料只保存到此浏览器。填写前会逐项展示审计结果。</p>
+      <section class="panel profile-panel" aria-labelledby="profile-title"><div class="section-heading"><div><p class="eyebrow">01 · 我的资料</p><h2 id="profile-title">当前简历</h2></div><div class="mini-actions"><button id="new-profile" class="icon-button" title="新增简历" type="button">+</button><button id="duplicate-profile" class="icon-button" title="复制当前简历" type="button">+</button><button id="delete-profile" class="icon-button danger" title="删除当前简历" type="button">-</button></div></div><label class="field">简历版本<select id="profile-select"></select></label><label class="field">版本名称<input id="profile-label" /></label><label class="field full">适用岗位关键词<textarea id="profile-role-keywords" rows="2"></textarea></label><div class="field-grid"><label class="field">姓名<input id="field-name" /></label><label class="field">邮箱<input id="field-email" /></label><label class="field">手机号<input id="field-phone" /></label><label class="field">所在城市<input id="field-city" /></label><label class="field full">教育经历<textarea id="field-education" rows="2"></textarea></label><label class="field">学校<input id="field-school" /></label><label class="field">专业<input id="field-major" /></label><label class="field">学历/学位<input id="field-degree" /></label><label class="field">毕业时间<input id="field-graduationDate" /></label><label class="field full">工作授权/签证<input id="field-workAuthorization" /></label><label class="field">LinkedIn<input id="field-linkedIn" /></label><label class="field">GitHub<input id="field-github" /></label><label class="field full">个人网站/作品集<input id="field-portfolio" /></label></div><div class="custom-answer-heading"><h3>常用问题与答案</h3><button id="add-answer" class="text-button" type="button">添加答案</button></div><div id="custom-answers" class="custom-answers"></div><button id="save-profile" class="button primary full-width" type="button">保存当前简历</button></section>
+      <section class="panel page-panel" aria-labelledby="page-title"><div class="section-heading"><div><p class="eyebrow">02 · 当前页面</p><h2 id="page-title">表单支持度</h2></div><button id="analyze-page" class="button secondary" type="button">分析页面</button></div><div id="page-summary" class="page-summary"><strong>尚未分析</strong><span>打开任意招聘表单后点击分析页面。</span></div><div id="support-summary" class="support-summary" hidden></div><div id="profile-recommendation" class="profile-recommendation" hidden></div></section>
+      <section class="panel audit-panel" aria-labelledby="audit-title"><div class="section-heading"><div><p class="eyebrow">03 · 填写审计</p><h2 id="audit-title">先复核，再填写</h2></div><span id="ready-count" class="count-badge">0</span></div><ul id="audit-list" class="audit-list"><li class="empty-state">分析页面后，会显示每个可填写、需补充或必须手动处理的字段。</li></ul><div class="action-stack"><button id="ai-map" class="button secondary" disabled type="button">用 AI 映射未知字段</button><button id="apply-fill" class="button primary" disabled type="button">填写已审核字段</button></div><p class="safety-note">不会上传文件、处理验证码或登录，也不会点击最终提交。</p></section>
+      <section class="panel settings-panel" aria-labelledby="settings-title"><div class="section-heading"><div><p class="eyebrow">04 · 你的 API</p><h2 id="settings-title">模型配置</h2></div><span class="local-badge">可选</span></div><p class="helper">未配置时仍可进行规则填写。AI 仅用于把未知页面字段匹配到本地已保存的值。</p><label class="field">接口协议<select id="provider-protocol"><option value="openai-compatible">OpenAI 兼容</option><option value="custom-json">自定义 JSON</option></select></label><label class="field">API 地址<input id="provider-baseUrl" type="url" /></label><label class="field">模型名称<input id="provider-model" /></label><label class="field">API Key<input id="provider-apiKey" type="password" /></label><label class="field">附加请求头 JSON<textarea id="provider-headersJson" rows="2">{}</textarea></label><div id="custom-api-fields" class="custom-api-fields"><label class="field">请求 JSON 模板<textarea id="provider-requestTemplate" rows="3"></textarea></label><label class="field">响应内容路径<input id="provider-responsePath" /></label></div><button id="save-provider" class="button secondary full-width" type="button">保存 API 配置</button></section>
+      <footer>不收集、不上传、不售卖个人资料。外部 API 的使用由你自行控制。</footer>
+    </main>
+    <script src="../extension/sidepanel.js" type="module"></script>
+  </body>
+</html>
